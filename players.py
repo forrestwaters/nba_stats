@@ -83,23 +83,6 @@ class Player(Base):
                 else:
                     continue
 
-    def write_player_stats_to_db(self, table_md):
-        if self.stats is None:
-            print('need to run the method get_player_stats() first')
-            exit()
-        else:
-            pass
-        data = []
-        for k, v in self.stats.items():
-            if len(v) > 0:
-                v['game'] = k
-                data.append(v)
-            else:
-                continue
-        conn = table_md.bind.connect()
-        conn.execute(table_md.insert(), data)
-        time.sleep(2)
-
 
 class PlayerStats(Base):
     __tablename__ = 'stats'
