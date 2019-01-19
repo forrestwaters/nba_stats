@@ -4,11 +4,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import requests
 from fake_useragent import UserAgent
-import time
+from queue import Queue
+from threading import Thread
+
 
 DB_NAME = 'nbastatstest.db'
-PLAYERS_TABLE = 'players'
-PLAYER_ATTRS = ['br_name', 'href', 'name', 'position', 'age', 'team']
 TEAMS = {'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BRK', 'Charlotte Hornets': 'CHO',
          'Chicago Bulls': 'CHI', 'Cleveland Cavaliers': 'CLE', 'Dallas Mavericks': 'DAL', 'Denver Nuggets': 'DEN',
          'Detroit Pistons': 'DET', 'Golden State Warriors': 'GSW', 'Houston Rockets': 'HOU', 'Indiana Pacers': 'IND',
@@ -109,6 +109,22 @@ class PlayerStats(Base):
     pts = Column(Float)
 
 
+class PlayerStatsWorker(Thread):
+
+    def __init__(self, queue):
+        Thread.__init__(self)
+        self.queue = queue
+
+    def run(self):
+        while True:
+            player, s = self.queue.get()
+            # Get the work from the queue and expand the tuple
+            try:
+                get_player_stats(player, s)
+            finally:
+                self.queue.task_done()
+
+
 def setup_sql_session(dbname):
     db = create_engine('sqlite:///{}'.format(dbname))
     Base.metadata.create_all(db)
@@ -177,7 +193,14 @@ if __name__ == '__main__':
     session = setup_sql_session(DB_NAME)
     populate_teams_table(session)
     populate_players_table(session)
+
+    q = Queue()
+    for x in range(5):
+        worker = PlayerStatsWorker(q)
+        worker.daemon = True
+        worker.start()
     for p in session.query(Player):
-        get_player_stats(p, session)
+        q.put((p, session))
+    q.join()
     session.commit()
     session.close()
