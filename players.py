@@ -8,7 +8,7 @@ from queue import Queue
 from threading import Thread
 
 
-DB_NAME = 'nbastatstest.db'
+DB_NAME = 'nbastats.db'
 TEAMS = {'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BRK', 'Charlotte Hornets': 'CHO',
          'Chicago Bulls': 'CHI', 'Cleveland Cavaliers': 'CLE', 'Dallas Mavericks': 'DAL', 'Denver Nuggets': 'DEN',
          'Detroit Pistons': 'DET', 'Golden State Warriors': 'GSW', 'Houston Rockets': 'HOU', 'Indiana Pacers': 'IND',
@@ -56,7 +56,9 @@ class Player(Base):
         with requests.get('https://www.basketball-reference.com' + self.href.rstrip('.html') + '/gamelog/2019',
                           headers={'User-Agent': ua.random}) as pstats:
             bsoup = BeautifulSoup(pstats.text, 'lxml')
-        body = bsoup.find('tbody').find_all('tr')
+        # Found that some players have no stats
+        if bsoup.find('tbody').find_all('tr') is not None:
+            body = bsoup.find('tbody').find_all('tr')
         for game in body:
             cg = game.find_all(attrs={'class': 'right'})
             try:
@@ -193,9 +195,9 @@ if __name__ == '__main__':
     session = setup_sql_session(DB_NAME)
     populate_teams_table(session)
     populate_players_table(session)
-
+    session.commit()
     q = Queue()
-    for x in range(5):
+    for x in range(8):
         worker = PlayerStatsWorker(q)
         worker.daemon = True
         worker.start()
