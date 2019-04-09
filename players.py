@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy_utils import UUIDType
+import uuid
 import requests
 from fake_useragent import UserAgent
 from queue import Queue
@@ -57,8 +59,7 @@ class Player(Base):
                           headers={'User-Agent': ua.random}) as pstats:
             bsoup = BeautifulSoup(pstats.text, 'lxml')
         # Found that some players have no stats
-        if bsoup.find('tbody').find_all('tr') is not None:
-            body = bsoup.find('tbody').find_all('tr')
+        body = bsoup.find('tbody').find_all('tr')
         for game in body:
             cg = game.find_all(attrs={'class': 'right'})
             try:
@@ -86,10 +87,14 @@ class Player(Base):
                     continue
 
 
+def generate_uuid():
+    return str(uuid.uuid4())
+
+
 class PlayerStats(Base):
     __tablename__ = 'stats'
-    id = Column(Integer, primary_key=True)
-    name = Column(Integer, ForeignKey('players.br_name'))
+    id = Column(UUIDType(binary=False), primary_key=True, default=generate_uuid)
+    name = Column(String, ForeignKey('players.br_name'))
     br_name = relationship("Player", back_populates="playerstats")
     game = Column(Integer)
     mp = Column(Float)
